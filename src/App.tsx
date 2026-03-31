@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { UploadCloud, Image as ImageIcon, Sparkles, Loader2, Trash2, ChevronRight, Download } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, Loader2, Trash2, ChevronRight, Download, Smartphone, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AppImage = {
@@ -18,6 +18,7 @@ export default function App() {
   const [images, setImages] = useState<AppImage[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>('');
+  const [platform, setPlatform] = useState<'mobile' | 'web'>('mobile');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,15 +87,15 @@ export default function App() {
     });
   };
 
-  const generateSingleVariation = async (ai: any, promptText: string, base64: string, mimeType: string, variationIndex: number) => {
-    const fullPrompt = `You are a world-class UI/UX designer. Redesign this mobile app interface screenshot. 
+  const generateSingleVariation = async (ai: any, promptText: string, base64: string, mimeType: string, variationIndex: number, targetPlatform: 'mobile' | 'web') => {
+    const fullPrompt = `You are a world-class UI/UX designer. Redesign this ${targetPlatform === 'mobile' ? 'mobile app' : 'web application'} interface screenshot. 
 Make it highly aesthetic, modern, sleek, and premium. 
 Follow this specific creative direction: ${promptText || "Make it look like a top-tier, modern, and beautiful app."}
 This is variation ${variationIndex}. Make it unique and distinct from other standard designs.
 Output ONLY the redesigned UI image.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
+      model: 'gemini-3.1-flash-image-preview',
       contents: {
         parts: [
           { inlineData: { data: base64, mimeType: mimeType } },
@@ -103,7 +104,7 @@ Output ONLY the redesigned UI image.`;
       },
       config: {
         imageConfig: {
-          aspectRatio: "9:16",
+          aspectRatio: targetPlatform === 'mobile' ? "9:16" : "16:9",
           imageSize: "1K"
         }
       }
@@ -131,8 +132,8 @@ Output ONLY the redesigned UI image.`;
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const [url1, url2] = await Promise.all([
-        generateSingleVariation(ai, prompt, selectedImage.base64, selectedImage.mimeType, 1),
-        generateSingleVariation(ai, prompt, selectedImage.base64, selectedImage.mimeType, 2)
+        generateSingleVariation(ai, prompt, selectedImage.base64, selectedImage.mimeType, 1, platform),
+        generateSingleVariation(ai, prompt, selectedImage.base64, selectedImage.mimeType, 2, platform)
       ]);
 
       setImages(prev => prev.map(img => 
@@ -199,7 +200,7 @@ Output ONLY the redesigned UI image.`;
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       onClick={() => setSelectedImageId(img.id)}
-                      className={`relative aspect-[9/16] rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${selectedImageId === img.id ? 'border-[var(--color-accent)] shadow-[0_0_15px_rgba(224,255,79,0.2)]' : 'border-transparent hover:border-[var(--color-border)]'}`}
+                      className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${selectedImageId === img.id ? 'border-[var(--color-accent)] shadow-[0_0_15px_rgba(224,255,79,0.2)]' : 'border-transparent hover:border-[var(--color-border)]'}`}
                     >
                       <img src={img.dataUrl} alt="Thumbnail" className="w-full h-full object-cover" />
                       <button 
@@ -220,9 +221,28 @@ Output ONLY the redesigned UI image.`;
             </section>
           )}
 
+          {/* Platform Toggle */}
+          <section className={`transition-opacity ${!selectedImage ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">3. Target Platform</h2>
+            <div className="flex bg-black rounded-xl p-1 border border-[var(--color-border)]">
+              <button
+                onClick={() => setPlatform('mobile')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-colors ${platform === 'mobile' ? 'bg-[var(--color-surface)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+              >
+                <Smartphone className="w-4 h-4" /> Mobile
+              </button>
+              <button
+                onClick={() => setPlatform('web')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-colors ${platform === 'web' ? 'bg-[var(--color-surface)] text-white shadow' : 'text-[var(--color-text-muted)] hover:text-white'}`}
+              >
+                <Monitor className="w-4 h-4" /> Web
+              </button>
+            </div>
+          </section>
+
           {/* Prompt Area */}
           <section className={`transition-opacity ${!selectedImage ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">3. Design Direction (Optional)</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">4. Design Direction (Optional)</h2>
             <textarea 
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -273,35 +293,35 @@ Output ONLY the redesigned UI image.`;
               </div>
             )}
 
-            <div className="flex flex-col xl:flex-row items-center justify-center gap-8 xl:gap-12 w-full max-w-[1400px]">
+            <div className={`flex ${platform === 'mobile' ? 'flex-col xl:flex-row' : 'flex-col'} items-center justify-center gap-8 xl:gap-12 w-full max-w-[1600px]`}>
               
               {/* Original Image */}
-              <div className="flex flex-col items-center w-full max-w-sm">
+              <div className={`flex flex-col items-center w-full ${platform === 'mobile' ? 'max-w-sm' : 'max-w-3xl'}`}>
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-4">Original</h3>
-                <div className="relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-2xl max-h-[70vh] aspect-[9/16] w-full">
+                <div className={`relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-2xl max-h-[70vh] w-full ${platform === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]'}`}>
                   <img src={selectedImage.dataUrl} alt="Original" className="w-full h-full object-contain bg-black" />
                 </div>
               </div>
 
               {/* Arrow Indicator (Desktop only) */}
-              <div className="hidden xl:flex flex-col items-center justify-center text-[var(--color-border)]">
+              <div className={`hidden ${platform === 'mobile' ? 'xl:flex' : 'hidden'} flex-col items-center justify-center text-[var(--color-border)]`}>
                 <ChevronRight className="w-12 h-12" />
               </div>
 
               {/* Redesign Variations */}
-              <div className="flex flex-col sm:flex-row gap-8 w-full max-w-3xl justify-center">
+              <div className={`flex flex-col sm:flex-row gap-8 w-full ${platform === 'mobile' ? 'max-w-3xl' : 'max-w-full'} justify-center`}>
                 {selectedImage.status === 'generating' ? (
-                  <div className="flex flex-col items-center justify-center text-[var(--color-accent)] w-full h-[70vh]">
+                  <div className={`flex flex-col items-center justify-center text-[var(--color-accent)] w-full ${platform === 'mobile' ? 'h-[70vh]' : 'h-[40vh]'}`}>
                     <Loader2 className="w-10 h-10 animate-spin mb-4" />
                     <p className="text-sm font-medium animate-pulse">AI is cooking 2 variations...</p>
                   </div>
                 ) : selectedImage.redesignUrls && selectedImage.redesignUrls.length > 0 ? (
                   selectedImage.redesignUrls.map((url, idx) => (
-                    <div key={idx} className="flex flex-col items-center w-full max-w-sm">
+                    <div key={idx} className={`flex flex-col items-center w-full ${platform === 'mobile' ? 'max-w-sm' : 'max-w-3xl'}`}>
                       <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)] mb-4 flex items-center gap-2">
                         <Sparkles className="w-4 h-4" /> Variation {idx + 1}
                       </h3>
-                      <div className="relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-[0_0_40px_rgba(224,255,79,0.1)] max-h-[70vh] aspect-[9/16] bg-black flex items-center justify-center group w-full">
+                      <div className={`relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-[0_0_40px_rgba(224,255,79,0.1)] max-h-[70vh] w-full ${platform === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]'} bg-black flex items-center justify-center group`}>
                         <img src={url} alt={`Redesign Variation ${idx + 1}`} className="w-full h-full object-contain" />
                         <a 
                           href={url} 
@@ -315,11 +335,11 @@ Output ONLY the redesigned UI image.`;
                     </div>
                   ))
                 ) : (
-                  <div className="flex flex-col items-center w-full max-w-sm">
+                  <div className={`flex flex-col items-center w-full ${platform === 'mobile' ? 'max-w-sm' : 'max-w-3xl'}`}>
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)] mb-4 flex items-center gap-2">
                       <Sparkles className="w-4 h-4" /> Redesigns
                     </h3>
-                    <div className="relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-[0_0_40px_rgba(224,255,79,0.1)] max-h-[70vh] aspect-[9/16] bg-black flex items-center justify-center w-full">
+                    <div className={`relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-[0_0_40px_rgba(224,255,79,0.1)] max-h-[70vh] w-full ${platform === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]'} bg-black flex items-center justify-center`}>
                       <div className="text-[var(--color-text-muted)] flex flex-col items-center">
                         <ImageIcon className="w-10 h-10 mb-2 opacity-20" />
                         <p className="text-sm">Ready to generate</p>
