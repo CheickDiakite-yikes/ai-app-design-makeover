@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { UploadCloud, Image as ImageIcon, Sparkles, Loader2, Trash2, ChevronRight, Download, Smartphone, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,44 @@ type AppImage = {
   status: 'idle' | 'generating' | 'done' | 'error';
   errorMsg?: string;
 };
+
+const LOADING_MESSAGES = [
+  "Analyzing your design...",
+  "Extracting UI elements...",
+  "Applying modern aesthetics...",
+  "Refining typography and spacing...",
+  "Cooking up 2 unique variations...",
+  "Adding final polish...",
+  "Almost there..."
+];
+
+function LoadingMessage() {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="h-6 relative w-full flex justify-center overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={messageIndex}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="text-sm font-medium absolute"
+        >
+          {LOADING_MESSAGES[messageIndex]}
+        </motion.p>
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function App() {
   const [images, setImages] = useState<AppImage[]>([]);
@@ -313,7 +351,7 @@ Output ONLY the redesigned UI image.`;
                 {selectedImage.status === 'generating' ? (
                   <div className={`flex flex-col items-center justify-center text-[var(--color-accent)] w-full ${platform === 'mobile' ? 'h-[70vh]' : 'h-[40vh]'}`}>
                     <Loader2 className="w-10 h-10 animate-spin mb-4" />
-                    <p className="text-sm font-medium animate-pulse">AI is cooking 2 variations...</p>
+                    <LoadingMessage />
                   </div>
                 ) : selectedImage.redesignUrls && selectedImage.redesignUrls.length > 0 ? (
                   selectedImage.redesignUrls.map((url, idx) => (
