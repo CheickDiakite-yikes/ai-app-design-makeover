@@ -1,7 +1,14 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { UploadCloud, Image as ImageIcon, Sparkles, Loader2, Trash2, ChevronRight, Download, Smartphone, Monitor } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, Loader2, Trash2, ChevronRight, Download, Smartphone, Monitor, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type RedesignData = {
+  url: string;
+  rating: 'up' | 'down' | null;
+  comment: string;
+  submitted: boolean;
+};
 
 type AppImage = {
   id: string;
@@ -9,7 +16,7 @@ type AppImage = {
   dataUrl: string;
   base64: string;
   mimeType: string;
-  redesignUrls: string[];
+  redesigns: RedesignData[];
   status: 'idle' | 'generating' | 'done' | 'error';
   errorMsg?: string;
 };
@@ -80,7 +87,7 @@ export default function App() {
           dataUrl,
           base64,
           mimeType: file.type,
-          redesignUrls: [],
+          redesigns: [],
           status: 'idle',
         };
         
@@ -175,7 +182,14 @@ Output ONLY the redesigned UI image.`;
       ]);
 
       setImages(prev => prev.map(img => 
-        img.id === selectedImage.id ? { ...img, status: 'done', redesignUrls: [url1, url2] } : img
+        img.id === selectedImage.id ? { 
+          ...img, 
+          status: 'done', 
+          redesigns: [
+            { url: url1, rating: null, comment: '', submitted: false },
+            { url: url2, rating: null, comment: '', submitted: false }
+          ] 
+        } : img
       ));
 
     } catch (error: any) {
@@ -353,22 +367,65 @@ Output ONLY the redesigned UI image.`;
                     <Loader2 className="w-10 h-10 animate-spin mb-4" />
                     <LoadingMessage />
                   </div>
-                ) : selectedImage.redesignUrls && selectedImage.redesignUrls.length > 0 ? (
-                  selectedImage.redesignUrls.map((url, idx) => (
+                ) : selectedImage.redesigns && selectedImage.redesigns.length > 0 ? (
+                  selectedImage.redesigns.map((redesign, idx) => (
                     <div key={idx} className={`flex flex-col items-center w-full ${platform === 'mobile' ? 'max-w-sm' : 'max-w-3xl'}`}>
                       <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-accent)] mb-4 flex items-center gap-2">
                         <Sparkles className="w-4 h-4" /> Variation {idx + 1}
                       </h3>
                       <div className={`relative rounded-[2rem] overflow-hidden border-4 border-[var(--color-surface)] shadow-[0_0_40px_rgba(224,255,79,0.1)] max-h-[70vh] w-full ${platform === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]'} bg-black flex items-center justify-center group`}>
-                        <img src={url} alt={`Redesign Variation ${idx + 1}`} className="w-full h-full object-contain" />
+                        <img src={redesign.url} alt={`Redesign Variation ${idx + 1}`} className="w-full h-full object-contain" />
                         <a 
-                          href={url} 
+                          href={redesign.url} 
                           download={`redesign-${selectedImage.id}-v${idx + 1}.png`}
                           className="absolute bottom-4 right-4 p-3 bg-[var(--color-accent)] text-black rounded-full shadow-lg opacity-0 group-hover:opacity-100 hover:scale-105 transition-all"
                           title="Download Redesign"
                         >
                           <Download className="w-5 h-5" />
                         </a>
+                      </div>
+                      
+                      {/* Feedback Form */}
+                      <div className="mt-6 w-full bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)] shadow-sm">
+                        {!redesign.submitted ? (
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Rate this design</span>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => handleRating(selectedImage.id, idx, 'up')}
+                                  className={`p-2 rounded-md transition-colors ${redesign.rating === 'up' ? 'bg-green-500/20 text-green-400' : 'hover:bg-[var(--color-border)] text-[var(--color-text-muted)]'}`}
+                                >
+                                  <ThumbsUp className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleRating(selectedImage.id, idx, 'down')}
+                                  className={`p-2 rounded-md transition-colors ${redesign.rating === 'down' ? 'bg-red-500/20 text-red-400' : 'hover:bg-[var(--color-border)] text-[var(--color-text-muted)]'}`}
+                                >
+                                  <ThumbsDown className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <textarea 
+                              value={redesign.comment}
+                              onChange={(e) => handleComment(selectedImage.id, idx, e.target.value)}
+                              placeholder="What do you like or dislike?"
+                              className="w-full h-20 bg-black border border-[var(--color-border)] rounded-lg p-3 text-sm focus:outline-none focus:border-[var(--color-accent)] resize-none transition-colors"
+                            />
+                            <button 
+                              onClick={() => submitFeedback(selectedImage.id, idx)}
+                              disabled={!redesign.rating && !redesign.comment.trim()}
+                              className="w-full py-2.5 bg-[var(--color-border)] hover:bg-[var(--color-accent)] hover:text-black text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Submit Feedback
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2 text-[var(--color-accent)] py-6">
+                            <Sparkles className="w-5 h-5" />
+                            <span className="text-sm font-medium">Feedback submitted. Thanks!</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
